@@ -9,10 +9,10 @@ const supabase = createClient(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const { code } = params;
+    const { code } = await params;
     const session = await auth();
     const user = await currentUser();
     const userId = session?.userId || `anon-${Math.random().toString(36).substr(2, 9)}`;

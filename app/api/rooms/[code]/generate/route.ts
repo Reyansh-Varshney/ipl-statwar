@@ -16,9 +16,9 @@ const HEX_MAP: Record<string, string> = {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
-  const { code } = params;
+  const { code } = await params;
 
   try {
     // 1. Get room details
