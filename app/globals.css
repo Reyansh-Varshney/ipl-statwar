@@ -3,25 +3,31 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --foreground-rgb: 228, 225, 233;
+  --background-start-rgb: 14, 14, 19;
+  --background-end-rgb: 14, 14, 19;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    @apply bg-surface-container-lowest text-on-surface;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+.pitch-grid {
+  background-image: radial-gradient(circle, #5a4136 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.1;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+.stadium-glow {
+  background: radial-gradient(circle at 50% -20%, rgba(255, 107, 0, 0.15) 0%, transparent 70%);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.clip-slanted {
+  clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
 }
