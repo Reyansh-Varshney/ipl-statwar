@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { generateQuiz } from "@/lib/ai/router";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Use service role key for server-side writes
-);
+function getSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("Missing Supabase environment variables on server (NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)");
+  }
+  return createClient(url, key);
+}
 
 const HEX_MAP: Record<string, string> = {
   easy: "#00",
@@ -20,7 +24,11 @@ export async function POST(
 ) {
   const { code } = await params;
 
+  let supabase: any;
+
   try {
+    supabase = getSupabaseClient();
+
     // 1. Get room details
     const { data: room, error: roomError } = await supabase
       .from("rooms")
