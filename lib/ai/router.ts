@@ -1,16 +1,103 @@
-import { OpenAI } from "openai";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import Groq from "groq-sdk";
 import { QuizGenerationSchema } from "./schema";
 
-// Provider Selection logic: Random + Fallback
-export async function generateQuiz(count: number, hexSeed: string, difficulty: string) {
-  const providers = ["gemini", "groq", "openrouter", "cloudflare"];
-  const randomOrder = providers.sort(() => Math.random() - 0.5);
+// Try to import newer Google GenAI SDK if available
+let GoogleGenAIClass: any = null;
+let googleGenAIResolved = false;
 
-  for (const provider of randomOrder) {
+async function resolveGoogleGenAI() {
+  if (googleGenAIResolved) return GoogleGenAIClass;
+  googleGenAIResolved = true;
+  try {
+    const mod = await import("@google/genai");
+    const candidate =
+      (mod as any).GoogleGenAI ??
+      (mod as any).default?.GoogleGenAI ??
+      (mod as any).default ??
+      null;
+    GoogleGenAIClass = typeof candidate === "function" ? candidate : null;
+  } catch {
+    GoogleGenAIClass = null;
+  }
+  return GoogleGenAIClass;
+}
+
+function extractText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((c: any) => (typeof c?.text === "string" ? c.text : ""))
+      .join("");
+  }
+  return "";
+}
+
+function parseQuizPayload(raw: string) {
+  const cleaned = raw.replace(/```json|```/gi, "").trim();
+  const start = Math.min(
+    ...["[", "{"]
+      .map((ch) => cleaned.indexOf(ch))
+      .filter((i) => i >= 0)
+  );
+  const payload = Number.isFinite(start) ? cleaned.slice(start) : cleaned;
+  const parsed = JSON.parse(payload);
+  const questions = Array.isArray(parsed) ? parsed : parsed?.questions ?? [];
+  return QuizGenerationSchema.parse(questions);
+}
+
+function validateQuizQuality(questions: ReturnType<typeof parseQuizPayload>, expectedCount: number) {
+  if (questions.length !== expectedCount) {
+    throw new Error(
+      `[AI ROUTER] Invalid quiz length: expected ${expectedCount}, got ${questions.length}`
+    );
+  }
+
+  for (const [index, q] of questions.entries()) {
+    const qNumber = index + 1;
+    const normalizedOptions = q.options.map((opt) => opt.trim());
+    const uniqueOptions = new Set(normalizedOptions.map((opt) => opt.toLowerCase()));
+
+    if (uniqueOptions.size !== 4) {
+      throw new Error(`[AI ROUTER] Q${qNumber} has duplicate options.`);
+    }
+
+    if (!normalizedOptions.includes(q.answer.trim())) {
+      throw new Error(`[AI ROUTER] Q${qNumber} answer is not an exact option match.`);
+    }
+
+    for (const option of normalizedOptions) {
+      const leaksNumericStat = /[:\-–—]\s*\d+(?:\.\d+)?\b/.test(option);
+      if (leaksNumericStat) {
+        throw new Error(
+          `[AI ROUTER] Q${qNumber} option leaks stat value with entity: "${option}".`
+        );
+      }
+    }
+  }
+
+  return questions;
+}
+
+function logProviderAttempt(provider: string, model: string, attempt: number, totalAttempts: number) {
+  console.log(
+    `[AI ROUTER] ▶ Provider=${provider} | Model=${model} | Attempt=${attempt}/${totalAttempts}`
+  );
+}
+
+function logProviderSuccess(provider: string, model: string, count: number) {
+  console.log(
+    `[AI ROUTER] ✅ Provider=${provider} | Model=${model} | Generated=${count} questions`
+  );
+}
+
+// Provider Selection logic: Priority + Fallback
+export async function generateQuiz(count: number, hexSeed: string, difficulty: string) {
+  const providers = ["gemini", "groq", "openrouter", "cloudflare"] as const;
+
+  for (const provider of providers) {
     try {
-      console.log(`[AI ROUTER] Attempting with: ${provider}`);
+      console.log(`[AI ROUTER] Attempting provider: ${provider}`);
       switch (provider) {
         case "gemini":
           return await geminiProvider(count, hexSeed, difficulty);
@@ -21,8 +108,9 @@ export async function generateQuiz(count: number, hexSeed: string, difficulty: s
         case "cloudflare":
           return await cloudflareProvider(count, hexSeed, difficulty);
       }
-    } catch (err) {
-      console.error(`[AI ROUTER] provider ${provider} failed:`, err);
+    } catch (err: any) {
+      const errorMsg = err?.message || err?.error?.message || String(err);
+      console.error(`[AI ROUTER] ❌ Provider [${provider}] FAILED. Error: ${errorMsg}. Switching to next provider...`);
       continue;
     }
   }
@@ -30,68 +118,180 @@ export async function generateQuiz(count: number, hexSeed: string, difficulty: s
 }
 
 const SYSTEM_PROMPT = (count: number, hex: string, difficulty: string) => `
-You are a competitive IPL cricket analyst. 
-Generate exactly ${count} multiple choice questions about IPL.
-Difficulty Obscurity Level: ${hex} (${difficulty}).
-Output MUST be a valid JSON array of objects.
+You are IPL StatWar's primary quiz generation engine.
 
-Schema:
-{
-  "type": "trivia" | "stat_puzzle",
-  "question": string,
-  "options": [string, string, string, string],
-  "answer": string (Exact text from one of the options)
-}
+MISSION:
+- Generate exactly ${count} high-quality IPL MCQs with reliable, current, and unambiguous answers.
+- Obscurity seed: ${hex}
+- Difficulty: ${difficulty}
+
+NON-NEGOTIABLE RULES:
+1) ACCURACY & RECENCY
+- Ground every fact in trustworthy public cricket data available via Google Search.
+- Prefer facts stable through latest completed IPL season.
+- Never invent facts, records, or player statistics.
+- If a fact is volatile across seasons, pin the question to explicit context (season or time window).
+
+2) QUESTION QUALITY
+- Every question must test meaningful IPL knowledge, not generic cricket trivia.
+- Question text must be self-contained and precise.
+- Avoid ambiguous superlatives without context (e.g. "best", "greatest", "top").
+- No trick questions, no opinion-based framing.
+
+3) OPTIONS QUALITY (CRITICAL)
+- Exactly 4 options.
+- Exactly 1 unambiguously correct option.
+- **TIE-BREAKER RULE:** If a record is shared by multiple entities (e.g., CSK and MI both have 5 IPL titles), DO NOT include the other tied entities in the wrong options. NEVER create a scenario where multiple options could be considered correct. Either frame the question so there is only one correct answer (e.g., "Which team was the FIRST to win 5 titles?"), or ensure the other tied entities are not listed in the options at all.
+- Options must be mutually exclusive and plausible.
+- Do NOT leak stat values inside options in "Name - number" or "Name: number" format.
+- Do NOT put raw numeric-only options for player/stat identity questions.
+- Keep options stylistically parallel.
+
+4) ANSWER CONSISTENCY
+- "answer" must be an exact string match to one option.
+- Do not include explanations.
+- Do not include references or citations in output.
+
+5) OUTPUT CONTRACT
+- Return ONLY valid JSON.
+- Preferred shape: JSON array.
+- Each object must match:
+  {
+    "type": "trivia" | "stat_puzzle",
+    "question": string,
+    "options": [string, string, string, string],
+    "answer": string
+  }
+
+6) SAFETY AGAINST OUTDATED/POOR PROMPTS
+- Never output outdated records when updated records exist.
+- Never ask low-quality questions like:
+  - "Who has the best economy in IPL?" with options containing "Player - value".
+- Convert weak templates into strong context-bound questions.
+
+FINAL CHECK BEFORE RETURNING:
+- Count is exactly ${count}.
+- Every answer exists in options.
+- No duplicate options.
+- No option contains leaked metric formatting (e.g., "Name - 7.8", "Name: 7.8").
+- JSON parses without modification.
 `;
 
-// 1. GEMINI 2.5 FLASH (Google)
+// 1. GEMINI (Google) - Priority 1 with Google Search Grounding
 async function geminiProvider(count: number, hex: string, difficulty: string) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-1.5-flash-latest" });
-  const result = await model.generateContent(SYSTEM_PROMPT(count, hex, difficulty));
-  const text = result.response.text();
-  const cleanJson = text.replace(/```json|```/g, "").trim();
-  return QuizGenerationSchema.parse(JSON.parse(cleanJson));
+  const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Missing GEMINI_API_KEY");
+
+  const GoogleGenAI = await resolveGoogleGenAI();
+  if (!GoogleGenAI) {
+    throw new Error(
+      "@google/genai is unavailable. Google-first routing requires @google/genai for grounding."
+    );
+  }
+
+  const maxAttempts = 2;
+  const ai = new GoogleGenAI({ apiKey });
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    logProviderAttempt("gemini", modelName, attempt, maxAttempts);
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: SYSTEM_PROMPT(count, hex, difficulty),
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const parsed = parseQuizPayload(response.text ?? "");
+    const validated = validateQuizQuality(parsed, count);
+    logProviderSuccess("gemini", modelName, validated.length);
+    return validated;
+  }
+
+  throw new Error("Gemini attempts exhausted.");
 }
 
 // 2. GROQ (Llama)
 async function groqProvider(count: number, hex: string, difficulty: string) {
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  const response = await groq.chat.completions.create({
-    messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
-    model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
-    response_format: { type: "json_object" },
-  });
-  const data = JSON.parse(response.choices[0].message.content || "[]");
-  // Some models return wrapped in a key
-  const questions = Array.isArray(data) ? data : (data.questions || []);
-  return QuizGenerationSchema.parse(questions);
+  const modelName = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("Missing GROQ_API_KEY");
+
+  const groq = new Groq({ apiKey });
+  const maxAttempts = 2;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    logProviderAttempt("groq", modelName, attempt, maxAttempts);
+    const response = await groq.chat.completions.create({
+      messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
+      model: modelName,
+      response_format: { type: "json_object" },
+    });
+
+    const parsed = parseQuizPayload(extractText(response.choices[0]?.message?.content) || "[]");
+    const validated = validateQuizQuality(parsed, count);
+    logProviderSuccess("groq", modelName, validated.length);
+    return validated;
+  }
+
+  throw new Error("Groq attempts exhausted.");
 }
 
 // 3. OPENROUTER
 async function openrouterProvider(count: number, hex: string, difficulty: string) {
+  const modelName = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct";
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("Missing OPENROUTER_API_KEY");
+
   const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
-    apiKey: process.env.OPENROUTER_API_KEY,
+    apiKey,
   });
-  const response = await openai.chat.completions.create({
-    model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct",
-    messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
-  });
-  const data = JSON.parse(response.choices[0].message.content || "[]");
-  return QuizGenerationSchema.parse(data);
+  const maxAttempts = 2;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    logProviderAttempt("openrouter", modelName, attempt, maxAttempts);
+    const response = await openai.chat.completions.create({
+      model: modelName,
+      messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
+      response_format: { type: "json_object" } as any,
+    });
+
+    const parsed = parseQuizPayload(extractText(response.choices[0]?.message?.content) || "[]");
+    const validated = validateQuizQuality(parsed, count);
+    logProviderSuccess("openrouter", modelName, validated.length);
+    return validated;
+  }
+
+  throw new Error("OpenRouter attempts exhausted.");
 }
 
 // 4. CLOUDFLARE AI GATEWAY
 async function cloudflareProvider(count: number, hex: string, difficulty: string) {
+  const modelName = process.env.CLOUDFLARE_MODEL || "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+  const apiKey = process.env.CLOUDFLARE_API_KEY;
+  if (!apiKey) throw new Error("Missing CLOUDFLARE_API_KEY");
+
   const cfClient = new OpenAI({
-    apiKey: process.env.CLOUDFLARE_API_KEY,
+    apiKey,
     baseURL: `https://gateway.ai.cloudflare.com/v1/${process.env.CLOUDFLARE_ACCOUNT_ID}/${process.env.CLOUDFLARE_GATEWAY_ID}/workers-ai/`,
   });
-  const response = await cfClient.chat.completions.create({
-    model: process.env.CLOUDFLARE_MODEL || "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-    messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
-  });
-  const data = JSON.parse(response.choices[0].message.content || "[]");
-  return QuizGenerationSchema.parse(data);
+  const maxAttempts = 2;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    logProviderAttempt("cloudflare", modelName, attempt, maxAttempts);
+    const response = await cfClient.chat.completions.create({
+      model: modelName,
+      messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
+      response_format: { type: "json_object" } as any,
+    });
+
+    const parsed = parseQuizPayload(extractText(response.choices[0]?.message?.content) || "[]");
+    const validated = validateQuizQuality(parsed, count);
+    logProviderSuccess("cloudflare", modelName, validated.length);
+    return validated;
+  }
+
+  throw new Error("Cloudflare attempts exhausted.");
 }

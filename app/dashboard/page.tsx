@@ -82,7 +82,7 @@ export default function DashboardPage() {
         <header className="mb-12 relative">
           <div className="absolute -left-4 top-0 w-1 h-full bg-primary-container" />
           <h1 className="font-headline text-5xl font-black uppercase tracking-tighter mb-2">Command Center</h1>
-          <p className="font-label text-secondary uppercase tracking-widest opacity-80">Season 2024 // Tactical Interface Active</p>
+          <p className="font-label text-secondary uppercase tracking-widest opacity-80">Season 2026 // Tactical Interface Active</p>
         </header>
 
         {!showCreate ? (
@@ -136,55 +136,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-
-            {/* Active Rooms */}
-            <section>
-              <div className="flex justify-between items-end mb-8 border-b border-outline-variant/30 pb-4">
-                <h3 className="font-headline text-2xl font-black uppercase tracking-tight">Active Battlefronts</h3>
-                <a className="font-label text-secondary text-sm uppercase hover:underline" href="#">View All Operations</a>
-              </div>
-              <div className="space-y-4">
-                {[
-                  { num: "01", name: "Mumbai Maulers Pro League", tags: ["Expert", "T20 Specialist"], squads: "12/16", intensity: "High", timeLeft: "04:22:10", intensityColor: "text-primary" },
-                  { num: "02", name: "The Captain's Challenge", tags: ["Standard"], squads: "08/10", intensity: "Medium", timeLeft: "12:15:00", intensityColor: "text-secondary" },
-                  { num: "03", name: "Weekend Smash Blitz", tags: ["Rapid"], squads: "04/20", intensity: "Ultra", timeLeft: "00:45:12", intensityColor: "text-primary" },
-                ].map((room) => (
-                  <div key={room.num} className="bg-surface-container-low hover:bg-surface-container p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all border-r-2 border-transparent hover:border-primary-container">
-                    <div className="flex items-center gap-6">
-                      <div className="w-16 h-16 bg-surface-container-highest flex items-center justify-center relative">
-                        <span className="font-headline text-3xl font-black text-outline-variant">{room.num}</span>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary-container" />
-                      </div>
-                      <div>
-                        <h4 className="font-headline text-xl font-bold uppercase tracking-tight">{room.name}</h4>
-                        <div className="flex gap-4 mt-1">
-                          {room.tags.map((tag) => (
-                            <span key={tag} className="font-label text-[10px] bg-primary-container/10 text-primary-container px-2 py-0.5 font-bold uppercase">{tag}</span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 md:flex md:gap-12 text-center md:text-left">
-                      <div className="flex flex-col">
-                        <span className="font-label text-[10px] text-outline opacity-60 uppercase mb-1">Squads</span>
-                        <span className="font-headline text-xl font-bold">{room.squads}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-label text-[10px] text-outline opacity-60 uppercase mb-1">Intensity</span>
-                        <span className={`font-headline text-xl font-bold ${room.intensityColor}`}>{room.intensity}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-label text-[10px] text-outline opacity-60 uppercase mb-1">Time Left</span>
-                        <span className="font-headline text-xl font-bold">{room.timeLeft}</span>
-                      </div>
-                    </div>
-                    <button className="bg-surface-container-highest px-6 py-3 font-headline font-bold uppercase text-xs tracking-widest hover:bg-primary-container hover:text-on-primary-container transition-all">
-                      Enter
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </section>
           </>
         ) : (
           /* Create Room Config */

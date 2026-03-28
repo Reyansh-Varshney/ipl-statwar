@@ -11,6 +11,7 @@
   "dependencies": {
     "@clerk/nextjs": "^7.0.7",
     "@clerk/themes": "^2.4.57",
+    "@google/genai": "^1.46.0",
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.100.1",
     "@tailwindcss/container-queries": "^0.1.1",
@@ -33,7 +34,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
-    "tailwindcss": "^3.4.1",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5"
   }
 }

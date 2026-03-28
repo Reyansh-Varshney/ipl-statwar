@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏏 IPL StatWar - Live Tactical Simulation Unit
 
-## Getting Started
+![IPL StatWar Engine](https://img.shields.io/badge/Status-Active-success)
+![Next.js](https://img.shields.io/badge/Next.js-16.2.1-black)
+![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4.17-blue)
+![AI Models](https://img.shields.io/badge/AI-Gemini%20%7C%20Groq%20%7C%20OpenRouter-orange)
 
-First, run the development server:
+**IPL StatWar** is a cutting-edge real-time multiplayer cricket trivia and statistics battleground. Step into the digital arena, challenge your tactical IQ, and outsmart rivals with millisecond-perfect sports data. 
 
+Engineered with an intelligent **AI Routing System**, it automatically falls back between top-tier AI providers (Google Gemini with Google Search Grounding → Groq → OpenRouter → Cloudflare) to ensure ultra-low latency and highly accurate IPL questions dynamically generated on the fly. 
+
+**Powered By:** Next.js 16 (Turbopack), Supabase, Clerk Auth, and an ultra-resilient Multi-AI framework.  
+**Created by**: Reyansh Varshney
+
+---
+
+## ⚡ Features
+
+- **Tactical Arenas**: Create private war rooms with adjustable intensity (Easy to Extreme) and payload volumes (5 to 20 questions).
+- **Multi-Provider AI Engine**: Grounded, verifiable IPL questions delivered with 100% uptime via cascading AI fallback priority (Gemini 2.5 Flash → Llama 3.3).
+- **Anti-Cheat Validation**: Strict schema and answer validation ensuring zero hallucinations, zero ambiguous ties, and no leaked answers in options.
+- **Dynamic Leaderboards**: Global and room-based score tracking (Upcoming natively).
+- **Secure Network**: Robust user authentication via Clerk.
+
+---
+
+## 🚀 Quick Start (Local Deployment)
+
+### Prerequisites
+- Node.js `v20.x` or higher
+- `npm` or `pnpm`
+
+### 1. Clone the Repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <your-repo-link>
+cd ipl-statwar
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Environment Configuration
+Create a `.env.local` file in the root directory. You will need keys for Auth, Database, and at least one AI provider.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# ==========================================
+# 🔐 AUTH & DATABASE (REQUIRED)
+# ==========================================
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
 
-## Learn More
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 
-To learn more about Next.js, take a look at the following resources:
+# ==========================================
+# 🧠 AI ENGINE ROUTING (AT LEAST ONE REQUIRED)
+# ==========================================
+# Primary Provider (With Search Grounding)
+GEMINI_API_KEY=your_gemini_api_key
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Fallback 1 (Ultra-fast Inference)
+GROQ_API_KEY=your_groq_api_key
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Fallback 2 
+OPENROUTER_API_KEY=your_openrouter_api_key
 
-## Deploy on Vercel
+# Fallback 3
+CLOUDFLARE_API_KEY=your_cf_api_key
+CLOUDFLARE_ACCOUNT_ID=your_cf_account_id
+CLOUDFLARE_GATEWAY_ID=your_cf_gateway_id
+```
+*(Note: Only `GEMINI_API_KEY` is strictly required to run the primary quiz engine locally).*
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 4. Initiate the Engine
+```bash
+npm run dev
+```
+Navigate to [http://localhost:3000](http://localhost:3000) to access the Command Center.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 🌐 Production Deployment (Vercel)
+
+IPL StatWar is optimized for seamless deployment on **Vercel**.
+
+1. Push your repository to GitHub.
+2. Sign in to [Vercel](https://vercel.com/) and create a "New Project".
+3. Import the `ipl-statwar` repository.
+4. **Important:** Open the **Environment Variables** section in the deployment settings and paste all values from your `.env.local`.
+5. Click **Deploy**. Vercel will automatically detect Next.js and build using the `npm run build` command. 
+
+*(Project requires no specific custom build commands. Standard `next build` natively works).*
+
+---
+
+## 🏗 System Architecture
+
+- **Frontend**: Next.js App Router, React 19, Tailwind CSS (v3.4.17 legacy config).
+- **Backend API**: Next.js Route Handlers (`/api/rooms/*`).
+- **Database**: Supabase PostgreSQL.
+- **AI Middleware**: Custom `lib/ai/router.ts` failover logic using Zod for strict JSON schema output parsing. 
+
+---
+
+<p align="center">
+  <small>Tactical Simulation Unit v4.02 // Engineered for the true Cricket Analyst.</small>
+</p>
