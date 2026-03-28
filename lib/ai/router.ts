@@ -91,6 +91,14 @@ function logProviderSuccess(provider: string, model: string, count: number) {
   );
 }
 
+function getModelList(envName: string, fallback: string) {
+  const raw = process.env[envName] ?? process.env[envName + "S"] ?? fallback;
+  return String(raw)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 // Provider Selection logic: Priority + Fallback
 export async function generateQuiz(count: number, hexSeed: string, difficulty: string) {
   const providers = ["gemini", "groq", "openrouter", "cloudflare"] as const;
@@ -179,7 +187,10 @@ FINAL CHECK BEFORE RETURNING:
 
 // 1. GEMINI (Google) - Priority 1 with Google Search Grounding
 async function geminiProvider(count: number, hex: string, difficulty: string) {
-  const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const modelNames = getModelList(
+    "GEMINI_MODEL",
+    "gemini-2.5-flash,gemini-3-flash-preview"
+  );
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("Missing GEMINI_API_KEY");
 
@@ -193,20 +204,30 @@ async function geminiProvider(count: number, hex: string, difficulty: string) {
   const maxAttempts = 2;
   const ai = new GoogleGenAI({ apiKey });
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    logProviderAttempt("gemini", modelName, attempt, maxAttempts);
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: SYSTEM_PROMPT(count, hex, difficulty),
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
-    });
+  for (const modelName of modelNames) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      logProviderAttempt("gemini", modelName, attempt, maxAttempts);
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: SYSTEM_PROMPT(count, hex, difficulty),
+          config: {
+            tools: [{ googleSearch: {} }],
+          },
+        });
 
-    const parsed = parseQuizPayload(response.text ?? "");
-    const validated = validateQuizQuality(parsed, count);
-    logProviderSuccess("gemini", modelName, validated.length);
-    return validated;
+        const parsed = parseQuizPayload(response.text ?? "");
+        const validated = validateQuizQuality(parsed, count);
+        logProviderSuccess("gemini", modelName, validated.length);
+        return validated;
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        console.warn(`[AI ROUTER] Gemini model ${modelName} attempt ${attempt} failed: ${msg}`);
+        if (attempt === maxAttempts) {
+          console.error(`[AI ROUTER] Gemini model ${modelName} exhausted, moving to next model.`);
+        }
+      }
+    }
   }
 
   throw new Error("Gemini attempts exhausted.");
@@ -214,25 +235,38 @@ async function geminiProvider(count: number, hex: string, difficulty: string) {
 
 // 2. GROQ (Llama)
 async function groqProvider(count: number, hex: string, difficulty: string) {
-  const modelName = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  const modelNames = getModelList(
+    "GROQ_MODEL",
+    "openai/gpt-oss-20b,meta-llama/llama-4-scout-17b-16e-instruct"
+  );
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("Missing GROQ_API_KEY");
 
   const groq = new Groq({ apiKey });
   const maxAttempts = 2;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    logProviderAttempt("groq", modelName, attempt, maxAttempts);
-    const response = await groq.chat.completions.create({
-      messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
-      model: modelName,
-      response_format: { type: "json_object" },
-    });
+  for (const modelName of modelNames) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      logProviderAttempt("groq", modelName, attempt, maxAttempts);
+      try {
+        const response = await groq.chat.completions.create({
+          messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
+          model: modelName,
+          response_format: { type: "json_object" },
+        });
 
-    const parsed = parseQuizPayload(extractText(response.choices[0]?.message?.content) || "[]");
-    const validated = validateQuizQuality(parsed, count);
-    logProviderSuccess("groq", modelName, validated.length);
-    return validated;
+        const parsed = parseQuizPayload(extractText(response.choices[0]?.message?.content) || "[]");
+        const validated = validateQuizQuality(parsed, count);
+        logProviderSuccess("groq", modelName, validated.length);
+        return validated;
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        console.warn(`[AI ROUTER] Groq model ${modelName} attempt ${attempt} failed: ${msg}`);
+        if (attempt === maxAttempts) {
+          console.error(`[AI ROUTER] Groq model ${modelName} exhausted, moving to next model.`);
+        }
+      }
+    }
   }
 
   throw new Error("Groq attempts exhausted.");
@@ -240,7 +274,10 @@ async function groqProvider(count: number, hex: string, difficulty: string) {
 
 // 3. OPENROUTER
 async function openrouterProvider(count: number, hex: string, difficulty: string) {
-  const modelName = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct";
+  const modelNames = getModelList(
+    "OPENROUTER_MODEL",
+    "stepfun/step-3.5-flash:free,nvidia/nemotron-3-nano-30b-a3b:free,arcee-ai/trinity-mini:free,z-ai/glm-4.5-air:free"
+  );
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("Missing OPENROUTER_API_KEY");
 
@@ -250,18 +287,28 @@ async function openrouterProvider(count: number, hex: string, difficulty: string
   });
   const maxAttempts = 2;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    logProviderAttempt("openrouter", modelName, attempt, maxAttempts);
-    const response = await openai.chat.completions.create({
-      model: modelName,
-      messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
-      response_format: { type: "json_object" } as any,
-    });
+  for (const modelName of modelNames) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      logProviderAttempt("openrouter", modelName, attempt, maxAttempts);
+      try {
+        const response = await openai.chat.completions.create({
+          model: modelName,
+          messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
+          response_format: { type: "json_object" } as any,
+        });
 
-    const parsed = parseQuizPayload(extractText(response.choices[0]?.message?.content) || "[]");
-    const validated = validateQuizQuality(parsed, count);
-    logProviderSuccess("openrouter", modelName, validated.length);
-    return validated;
+        const parsed = parseQuizPayload(extractText(response.choices[0]?.message?.content) || "[]");
+        const validated = validateQuizQuality(parsed, count);
+        logProviderSuccess("openrouter", modelName, validated.length);
+        return validated;
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        console.warn(`[AI ROUTER] OpenRouter model ${modelName} attempt ${attempt} failed: ${msg}`);
+        if (attempt === maxAttempts) {
+          console.error(`[AI ROUTER] OpenRouter model ${modelName} exhausted, moving to next model.`);
+        }
+      }
+    }
   }
 
   throw new Error("OpenRouter attempts exhausted.");
@@ -269,7 +316,10 @@ async function openrouterProvider(count: number, hex: string, difficulty: string
 
 // 4. CLOUDFLARE AI GATEWAY
 async function cloudflareProvider(count: number, hex: string, difficulty: string) {
-  const modelName = process.env.CLOUDFLARE_MODEL || "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+  const modelNames = getModelList(
+    "CLOUDFLARE_MODEL",
+    "@cf/meta/llama-4-scout-17b-16e-instruct,@cf/zai-org/glm-4.7-flash"
+  );
   const apiKey = process.env.CLOUDFLARE_API_KEY;
   if (!apiKey) throw new Error("Missing CLOUDFLARE_API_KEY");
 
@@ -279,18 +329,28 @@ async function cloudflareProvider(count: number, hex: string, difficulty: string
   });
   const maxAttempts = 2;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    logProviderAttempt("cloudflare", modelName, attempt, maxAttempts);
-    const response = await cfClient.chat.completions.create({
-      model: modelName,
-      messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
-      response_format: { type: "json_object" } as any,
-    });
+  for (const modelName of modelNames) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      logProviderAttempt("cloudflare", modelName, attempt, maxAttempts);
+      try {
+        const response = await cfClient.chat.completions.create({
+          model: modelName,
+          messages: [{ role: "system", content: SYSTEM_PROMPT(count, hex, difficulty) }],
+          response_format: { type: "json_object" } as any,
+        });
 
-    const parsed = parseQuizPayload(extractText(response.choices[0]?.message?.content) || "[]");
-    const validated = validateQuizQuality(parsed, count);
-    logProviderSuccess("cloudflare", modelName, validated.length);
-    return validated;
+        const parsed = parseQuizPayload(extractText(response.choices[0]?.message?.content) || "[]");
+        const validated = validateQuizQuality(parsed, count);
+        logProviderSuccess("cloudflare", modelName, validated.length);
+        return validated;
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        console.warn(`[AI ROUTER] Cloudflare model ${modelName} attempt ${attempt} failed: ${msg}`);
+        if (attempt === maxAttempts) {
+          console.error(`[AI ROUTER] Cloudflare model ${modelName} exhausted, moving to next model.`);
+        }
+      }
+    }
   }
 
   throw new Error("Cloudflare attempts exhausted.");
