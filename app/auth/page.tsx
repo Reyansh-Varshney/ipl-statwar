@@ -1,11 +1,42 @@
-"use client";
-import { useState } from "react";
 import Link from "next/link";
-import { SignIn, SignUp } from "@clerk/nextjs";
+import { auth0 } from "@/lib/auth0";
 
+type AuthPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default function AuthPage() {
-  const [tab, setTab] = useState<"login" | "signup">("login");
+function getErrorBanner(errorCode?: string) {
+  switch (errorCode) {
+    case "blocked":
+      return {
+        title: "Access Blocked",
+        description:
+          "This account has been blocked and cannot sign in. Contact support if you believe this is a mistake.",
+        className: "border-error bg-error/10 text-error",
+      };
+    case "session_expired":
+      return {
+        title: "Session Expired",
+        description: "Your login session expired. Please try signing in again.",
+        className: "border-secondary bg-secondary/10 text-secondary",
+      };
+    case "auth_failed":
+      return {
+        title: "Authentication Failed",
+        description: "Sign in could not be completed. Please retry.",
+        className: "border-secondary bg-secondary/10 text-secondary",
+      };
+    default:
+      return null;
+  }
+}
+
+export default async function AuthPage({ searchParams }: AuthPageProps) {
+  const session = await auth0.getSession();
+  const params = searchParams ? await searchParams : {};
+  const rawError = params.error;
+  const errorCode = Array.isArray(rawError) ? rawError[0] : rawError;
+  const errorBanner = getErrorBanner(errorCode);
 
   return (
     <div className="bg-[#0A0A0F] text-on-surface font-body min-h-screen flex flex-col items-center justify-center selection:bg-primary-container selection:text-on-primary-container relative overflow-hidden">
@@ -36,6 +67,13 @@ export default function AuthPage() {
           </p>
         </header>
 
+        {errorBanner && (
+          <section className={`mb-8 border px-4 py-4 ${errorBanner.className}`}>
+            <p className="font-headline text-sm font-black uppercase tracking-wider">{errorBanner.title}</p>
+            <p className="mt-1 font-label text-xs uppercase tracking-wide opacity-90">{errorBanner.description}</p>
+          </section>
+        )}
+
         {/* Auth Module */}
         <div className="bg-transparent p-0 relative">
 
@@ -43,36 +81,43 @@ export default function AuthPage() {
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary-container" />
 
           <div className="space-y-8">
-            {/* Tab Toggle */}
             <div className="flex border-b border-black/5 mb-10">
-
-              <button
-                onClick={() => setTab("login")}
-                className={`flex-1 py-3 font-headline font-bold text-sm uppercase transition-colors ${
-                  tab === "login"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-on-surface-variant opacity-50 hover:opacity-100"
-                }`}
-              >
-                Enter Stadium
-              </button>
-              <button
-                onClick={() => setTab("signup")}
-                className={`flex-1 py-3 font-headline font-bold text-sm uppercase transition-colors ${
-                  tab === "signup"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-on-surface-variant opacity-50 hover:opacity-100"
-                }`}
-              >
-                Draft Profile
-              </button>
+              <span className="flex-1 py-3 font-headline font-bold text-sm uppercase text-primary border-b-2 border-primary text-center">
+                Auth0 Universal Login
+              </span>
             </div>
 
-            <div className="flex justify-center w-full">
-              {tab === "login" ? (
-                <SignIn fallbackRedirectUrl="/dashboard" routing="hash" />
+            <div className="flex flex-col gap-4">
+              {session ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    className="w-full text-center py-4 font-headline font-black uppercase tracking-wider bg-primary-container text-on-primary-container"
+                  >
+                    Go to Dashboard
+                  </Link>
+                  <Link
+                    href="/auth/logout"
+                    className="w-full text-center py-4 font-headline font-black uppercase tracking-wider border border-outline-variant text-on-surface"
+                  >
+                    Logout
+                  </Link>
+                </>
               ) : (
-                <SignUp fallbackRedirectUrl="/dashboard" routing="hash" />
+                <>
+                  <Link
+                    href="/auth/login"
+                    className="w-full text-center py-4 font-headline font-black uppercase tracking-wider bg-primary-container text-on-primary-container"
+                  >
+                    Enter Stadium
+                  </Link>
+                  <Link
+                    href="/auth/login?screen_hint=signup"
+                    className="w-full text-center py-4 font-headline font-black uppercase tracking-wider border border-outline-variant text-on-surface"
+                  >
+                    Draft Profile
+                  </Link>
+                </>
               )}
             </div>
           </div>

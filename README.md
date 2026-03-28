@@ -9,7 +9,7 @@
 
 Engineered with an intelligent **AI Routing System**, it automatically falls back between top-tier AI providers (Google Gemini with Google Search Grounding → Groq → OpenRouter → Cloudflare) to ensure ultra-low latency and highly accurate IPL questions dynamically generated on the fly. 
 
-**Powered By:** Next.js 16 (Turbopack), Supabase, Clerk Auth, and an ultra-resilient Multi-AI framework.  
+**Powered By:** Next.js 16 (Turbopack), Supabase, Auth0, and an ultra-resilient Multi-AI framework.  
 **Created by**: Reyansh Varshney
 
 ---
@@ -20,7 +20,7 @@ Engineered with an intelligent **AI Routing System**, it automatically falls bac
 - **Multi-Provider AI Engine**: Grounded, verifiable IPL questions delivered with 100% uptime via cascading AI fallback priority (Gemini 2.5 Flash → Llama 3.3).
 - **Anti-Cheat Validation**: Strict schema and answer validation ensuring zero hallucinations, zero ambiguous ties, and no leaked answers in options.
 - **Dynamic Leaderboards**: Global and room-based score tracking (Upcoming natively).
-- **Secure Network**: Robust user authentication via Clerk.
+- **Secure Network**: Robust user authentication via Auth0.
 
 ---
 
@@ -46,10 +46,13 @@ Create a `.env.local` file in the root directory. You will need keys for Auth, D
 
 ```env
 # ==========================================
-# 🔐 AUTH & DATABASE (REQUIRED)
+# 🔐 AUTH0 & DATABASE (REQUIRED)
 # ==========================================
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
+APP_BASE_URL=http://localhost:3000
+AUTH0_DOMAIN=iplstatwars.jp.auth0.com
+AUTH0_CLIENT_ID=ST274GDBGfj2kbieuu9l8J3hcGxFksF2
+AUTH0_CLIENT_SECRET=your_auth0_client_secret
+AUTH0_SECRET=generate_with_openssl_rand_hex_32
 
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
@@ -92,6 +95,25 @@ IPL StatWar is optimized for seamless deployment on **Vercel**.
 5. Click **Deploy**. Vercel will automatically detect Next.js and build using the `npm run build` command. 
 
 *(Project requires no specific custom build commands. Standard `next build` natively works).*
+
+### ✅ Production Readiness Checklist
+
+Before promoting to production, verify the following:
+
+1. **Rotate any previously exposed secrets** (Auth0, Supabase, AI keys, Clerk legacy keys).
+2. **Set production env vars in Vercel** (never commit `.env` files).
+3. **Set `APP_BASE_URL` to your production origin** (for example `https://yourdomain.com`).
+4. **Update Auth0 application URLs** to match production exactly:
+  - Callback URL: `https://yourdomain.com/auth/callback`
+  - Logout URL: `https://yourdomain.com/`
+5. **Keep `AUTH0_SECRET` stable** after release (changing it invalidates existing sessions).
+6. **Remove unused legacy auth vars** (`NEXTAUTH_*`, `CLERK_*`) from deployment environment.
+7. **Run production build locally**: `npm run build`.
+8. **Test critical auth flows** in production preview:
+  - Login
+  - Signup (`/auth/login?screen_hint=signup`)
+  - Logout
+  - Blocked-user callback handling
 
 ---
 

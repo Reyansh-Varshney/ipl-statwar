@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
 
 
 const inter = Inter({ 
@@ -64,50 +63,18 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable} bg-surface-container-lowest text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container`}>
-        <ClerkProvider
-          appearance={{
-            variables: {
-              colorText: '#0f172a',
-              colorTextSecondary: '#475569',
-              colorPrimary: '#000000',
-              colorBackground: 'rgba(255, 255, 255, 0.85)',
-              colorInputBackground: 'rgba(255, 255, 255, 0.4)',
-              colorInputText: '#000000',
-              borderRadius: '24px',
-              fontFamily: 'inherit',
-            },
-            elements: {
-              card: "bg-white/85 backdrop-blur-3xl border border-white/40 shadow-[0_0_50px_rgba(255,255,255,0.1)] rounded-[32px] p-10 mt-8 mb-8",
-              navbar: "hidden",
-              footer: "hidden",
-              formButtonPrimary: "bg-[#1e1e1e] hover:bg-black transition-all rounded-full h-12 text-base font-bold uppercase tracking-wider",
-              formFieldInput: "rounded-xl bg-white/30 border border-black/10 transition-all focus:border-black/30 h-11",
-              headerTitle: "text-[#1e1e1e] font-black text-3xl italic tracking-tighter uppercase",
-              headerSubtitle: "text-[#64748b] font-medium opacity-80",
-              dividerLine: "bg-black/10",
-              dividerText: "text-black/30 font-bold uppercase text-[10px] tracking-widest",
-              socialButtonsBlockButton: "rounded-2xl border border-black/10 bg-white/20 hover:bg-white/40 transition-all h-12",
-              socialButtonsBlockButtonText: "hidden",
-              socialButtonsBlockButtonArrow: "hidden",
-              identityPreviewText: "text-black font-bold",
-              userButtonPopoverCard: "bg-white/80 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl",
-              userPreviewMainIdentifier: "text-black font-bold",
-            }
-          }}
-        >
-          <div className="flex flex-col min-h-screen">
-            <div className="flex-grow">
-              {children}
-            </div>
-            <footer className="py-8 bg-[#0e0e13] border-t border-outline-variant/10 text-center relative z-40 mb-20 md:mb-0">
-              <div className="container mx-auto px-6">
-                <p className="font-headline text-[10px] uppercase tracking-[0.4em] text-secondary opacity-40">
-                  Tactical Simulation Unit v4.02 // Made by Reyansh Varshney
-                </p>
-              </div>
-            </footer>
+        <div className="flex flex-col min-h-screen">
+          <div className="flex-grow">
+            {children}
           </div>
-        </ClerkProvider>
+          <footer className="py-8 bg-[#0e0e13] border-t border-outline-variant/10 text-center relative z-40 mb-20 md:mb-0">
+            <div className="container mx-auto px-6">
+              <p className="font-headline text-[10px] uppercase tracking-[0.4em] text-secondary opacity-40">
+                Tactical Simulation Unit v4.02 // Made by Reyansh Varshney
+              </p>
+            </div>
+          </footer>
+        </div>
       </body>
     </html>
   );

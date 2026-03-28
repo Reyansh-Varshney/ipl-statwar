@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth0 } from "@/lib/auth0";
 
 function getSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -24,9 +24,12 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = getSupabaseClient();
 
-    const session = await auth();
-    const user = await currentUser();
-    const hostId = session?.userId || "anonymous-host-id";
+    const session = await auth0.getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const hostId = session.user.sub;
 
     const body = await req.json();
     const { name, difficulty, question_count } = body;
@@ -54,7 +57,11 @@ export async function POST(req: NextRequest) {
     await supabase.from("room_players").insert({
       room_id: room.id,
       user_id: hostId,
-      nickname: user?.firstName || user?.username || "HostPlayer",
+      nickname:
+        session.user.name ||
+        session.user.nickname ||
+        session.user.email?.split("@")[0] ||
+        "HostPlayer",
       joined_at: new Date().toISOString()
     });
 

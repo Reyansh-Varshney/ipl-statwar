@@ -1,10 +1,9 @@
-"use client";
-
 import Link from "next/link";
-import { useUser, UserButton } from "@clerk/nextjs";
+import { auth0 } from "@/lib/auth0";
 
-export default function LandingPage() {
-  const { isSignedIn, isLoaded } = useUser();
+export default async function LandingPage() {
+  const session = await auth0.getSession();
+  const isSignedIn = Boolean(session);
   return (
     <div className="bg-surface-container-lowest min-h-screen">
       {/* Top Navigation Bar */}
@@ -19,33 +18,13 @@ export default function LandingPage() {
           >
             Arena
           </Link>
-          <Link
-            className="text-[#a2e7ff] opacity-70 hover:bg-[#ff6b00]/10 hover:text-[#ff6b00] transition-all duration-100 font-headline uppercase tracking-tighter text-sm px-1 py-1"
-            href="#"
-          >
-            Leaderboard
-          </Link>
-          <Link
-            className="text-[#a2e7ff] opacity-70 hover:bg-[#ff6b00]/10 hover:text-[#ff6b00] transition-all duration-100 font-headline uppercase tracking-tighter text-sm px-1 py-1"
-            href="#"
-          >
-            Intel
-          </Link>
-          <Link
-            className="text-[#a2e7ff] opacity-70 hover:bg-[#ff6b00]/10 hover:text-[#ff6b00] transition-all duration-100 font-headline uppercase tracking-tighter text-sm px-1 py-1"
-            href="#"
-          >
-            Squad
-          </Link>
         </div>
         <div className="flex items-center gap-4">
           <div className="w-8 h-8 flex items-center justify-center">
-            {!isLoaded ? (
-              <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-            ) : isSignedIn ? (
-              <UserButton />
+            {isSignedIn ? (
+              <Link href="/auth/logout" className="material-symbols-outlined text-[#a2e7ff] opacity-70 hover:opacity-100">logout</Link>
             ) : (
-              <Link href="/auth" className="material-symbols-outlined text-[#a2e7ff] opacity-70 hover:opacity-100">person</Link>
+              <Link href="/auth/login" className="material-symbols-outlined text-[#a2e7ff] opacity-70 hover:opacity-100">person</Link>
             )}
           </div>
         </div>
@@ -73,22 +52,18 @@ export default function LandingPage() {
               Step into the digital arena. Outsmart your rivals with tactical precision, live stats, and absolute cricket dominance.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto min-h-[70px]">
-              {!isLoaded ? (
-                <div className="w-full flex justify-center py-4">
-                  <div className="w-6 h-6 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                </div>
-              ) : isSignedIn ? (
+              {isSignedIn ? (
                 <Link href="/dashboard" className="group relative px-10 py-5 bg-primary-container text-on-primary-container font-headline font-black text-xl uppercase tracking-wider transition-all duration-100 hover:translate-x-2 hover:-translate-y-2 active:scale-95 text-center">
                   <span className="relative z-10">Go to Arena</span>
                   <div className="absolute inset-0 bg-secondary -z-10 translate-x-0 translate-y-0 group-hover:-translate-x-2 group-hover:translate-y-2 transition-transform duration-100"></div>
                 </Link>
               ) : (
                 <>
-                  <Link href="/auth" className="group relative px-10 py-5 bg-primary-container text-on-primary-container font-headline font-black text-xl uppercase tracking-wider transition-all duration-100 hover:translate-x-2 hover:-translate-y-2 active:scale-95 text-center">
+                  <Link href="/auth/login" className="group relative px-10 py-5 bg-primary-container text-on-primary-container font-headline font-black text-xl uppercase tracking-wider transition-all duration-100 hover:translate-x-2 hover:-translate-y-2 active:scale-95 text-center">
                     <span className="relative z-10">Start Training</span>
                     <div className="absolute inset-0 bg-secondary -z-10 translate-x-0 translate-y-0 group-hover:-translate-x-2 group-hover:translate-y-2 transition-transform duration-100"></div>
                   </Link>
-                  <Link href="/auth?tab=signup" className="px-10 py-5 border-2 border-secondary/30 text-secondary font-headline font-black text-xl uppercase tracking-wider transition-all duration-100 hover:bg-secondary hover:text-surface-container-lowest hover:border-secondary active:scale-95 text-center">
+                  <Link href="/auth/login?screen_hint=signup" className="px-10 py-5 border-2 border-secondary/30 text-secondary font-headline font-black text-xl uppercase tracking-wider transition-all duration-100 hover:bg-secondary hover:text-surface-container-lowest hover:border-secondary active:scale-95 text-center">
                     Join Room
                   </Link>
                 </>

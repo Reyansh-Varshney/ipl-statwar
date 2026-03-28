@@ -64,9 +64,6 @@ export default function DashboardPage() {
           </Link>
           <div className="hidden md:flex gap-6">
             <a className="font-headline uppercase tracking-tighter text-[#ff6b00] border-b-2 border-[#ff6b00] transition-all duration-100 h-16 flex items-center" href="#">Arena</a>
-            <a className="font-headline uppercase tracking-tighter text-[#a2e7ff] opacity-70 hover:bg-[#ff6b00]/10 hover:text-[#ff6b00] transition-all duration-100 h-16 flex items-center px-2" href="#">Leaderboard</a>
-            <a className="font-headline uppercase tracking-tighter text-[#a2e7ff] opacity-70 hover:bg-[#ff6b00]/10 hover:text-[#ff6b00] transition-all duration-100 h-16 flex items-center px-2" href="#">Intel</a>
-            <a className="font-headline uppercase tracking-tighter text-[#a2e7ff] opacity-70 hover:bg-[#ff6b00]/10 hover:text-[#ff6b00] transition-all duration-100 h-16 flex items-center px-2" href="#">Squad</a>
           </div>
         </div>
         <div className="flex items-center gap-4">

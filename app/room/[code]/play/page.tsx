@@ -3,7 +3,6 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
-import { useUser } from "@clerk/nextjs";
 
 const OPTION_LETTERS = ["A", "B", "C", "D"] as const;
 
@@ -21,7 +20,7 @@ const TIME_LIMIT = 20; // seconds per question
 export default function PlayPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const { user } = useUser();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -31,6 +30,17 @@ export default function PlayPage() {
   const [submittedCount, setSubmittedCount] = useState(0);
   const startTimeRef = useRef<number>(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      const res = await fetch("/auth/profile", { cache: "no-store" });
+      if (!res.ok) return;
+      const profile = await res.json();
+      setCurrentUserId(profile?.sub ?? null);
+    };
+
+    loadCurrentUser();
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -69,7 +79,7 @@ export default function PlayPage() {
   }, [currentIdx, questions.length]);
 
   const handleSubmit = async (choice: string | null) => {
-    const userId = user?.id;
+    const userId = currentUserId;
     if (locked || !roomId || !userId || questions.length === 0) return;
     clearInterval(timerRef.current!);
     setLocked(true);

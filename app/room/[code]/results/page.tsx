@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
-import { useUser } from "@clerk/nextjs";
 
 type LeaderboardEntry = {
   user_id: string;
@@ -15,9 +14,20 @@ type LeaderboardEntry = {
 
 export default function ResultsPage() {
   const { code } = useParams<{ code: string }>();
-  const { user } = useUser();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [roomId, setRoomId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      const res = await fetch("/auth/profile", { cache: "no-store" });
+      if (!res.ok) return;
+      const profile = await res.json();
+      setCurrentUserId(profile?.sub ?? null);
+    };
+
+    loadCurrentUser();
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -175,7 +185,7 @@ export default function ResultsPage() {
           {leaderboard.slice(1).map((entry, idx) => {
             const rank = idx + 2;
             const style = RANK_STYLES[rank - 1] ?? { border: "", glow: "", numColor: "text-outline", medal: "", medalColor: "" };
-            const isCurrentUser = entry.user_id === user?.id;
+            const isCurrentUser = entry.user_id === currentUserId;
 
             return (
               <div

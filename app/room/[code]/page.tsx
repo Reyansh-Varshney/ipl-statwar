@@ -3,7 +3,6 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
-import { useUser } from "@clerk/nextjs";
 
 type Player = {
   id: string;
@@ -24,12 +23,23 @@ type Room = {
 export default function WaitingRoomPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const { user } = useUser();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [isHost, setIsHost] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      const res = await fetch("/auth/profile", { cache: "no-store" });
+      if (!res.ok) return;
+      const profile = await res.json();
+      setCurrentUserId(profile?.sub ?? null);
+    };
+
+    loadCurrentUser();
+  }, []);
 
   useEffect(() => {
     const initRoom = async () => {
@@ -39,13 +49,13 @@ export default function WaitingRoomPage() {
       const { data: rm } = await supabase.from("rooms").select("*").eq("code", code).single();
       if (rm) {
         setRoom(rm as Room);
-        if (user?.id === rm.host_id) {
+        if (currentUserId && currentUserId === rm.host_id) {
           setIsHost(true);
         }
       }
     };
     initRoom();
-  }, [code, user]);
+  }, [code, currentUserId]);
 
   useEffect(() => {
     if (!room?.id) return;
